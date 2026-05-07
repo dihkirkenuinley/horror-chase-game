@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Femby Maze Horror</title>
+  <title>Femboy Maze Horror</title>
   <style>
     body {
       margin: 0;
@@ -193,8 +193,16 @@
     }
 
     function drawMaze() {
+      const vision = 220;
+
       for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
+          const cx = x * TILE + TILE / 2;
+          const cy = y * TILE + TILE / 2;
+
+          const dist = Math.hypot(player.x - cx, player.y - cy);
+          if (dist > vision) continue;
+
           if (maze[y][x] === 1) {
             ctx.fillStyle = '#161616';
             ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
@@ -202,6 +210,14 @@
             ctx.strokeStyle = '#2f2f2f';
             ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
           }
+
+          if (maze[y][x] === 2) {
+            ctx.fillStyle = '#00ff99';
+            ctx.fillRect(x * TILE + 8, y * TILE + 8, 16, 16);
+          }
+        }
+      }
+    }
 
           if (maze[y][x] === 2) {
             ctx.fillStyle = '#00ff99';
@@ -265,7 +281,8 @@
     }
 
     function drawLighting() {
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      // Dark fog overlay (does NOT remove player)
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       ctx.save();
@@ -274,10 +291,10 @@
       const gradient = ctx.createRadialGradient(
         player.x,
         player.y,
-        40,
+        50,
         player.x,
         player.y,
-        220
+        200
       );
 
       gradient.addColorStop(0, 'rgba(0,0,0,1)');
@@ -285,7 +302,7 @@
 
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(player.x, player.y, 220, 0, Math.PI * 2);
+      ctx.arc(player.x, player.y, 200, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.restore();
@@ -296,10 +313,26 @@
     function gameOver(win) {
       ended = true;
 
+      const msg = document.createElement('div');
+      msg.style.position = 'absolute';
+      msg.style.top = '50%';
+      msg.style.left = '50%';
+      msg.style.transform = 'translate(-50%, -50%)';
+      msg.style.color = 'white';
+      msg.style.fontSize = '32px';
+      msg.style.fontFamily = 'monospace';
+      msg.style.textShadow = '0 0 10px black';
+      msg.style.textAlign = 'center';
+      msg.style.zIndex = '9999';
+
+      msg.innerText = win ? 'YOU ESCAPED' : 'YOU GOT CAUGHT';
+
+      document.body.appendChild(msg);
+
       setTimeout(() => {
-        alert(win ? 'YOU ESCAPED THE FEMBOYS' : 'THE FEMBOYS GOT YOU');
         location.reload();
-      }, 100);
+      }, 3000);
+    }, 100);
     }
 
     function checkWin() {
@@ -321,24 +354,10 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       drawMaze();
-      drawPlayer();
-
-      enemies.forEach(e => {
-        const dist = Math.hypot(player.x - e.x, player.y - e.y);
-
-        if (dist < 170) {
-          ctx.save();
-
-          if (dist > 110) {
-            ctx.globalAlpha = (170 - dist) / 60;
-          }
-
-          drawEnemy(e);
-          ctx.restore();
-        }
-      });
+      enemies.forEach(drawEnemy);
 
       drawLighting();
+      drawPlayer();
 
       requestAnimationFrame(gameLoop);
     }
