@@ -51,16 +51,44 @@
 
     const maze = [];
 
+    // Better maze generation with guaranteed paths
+
     for (let y = 0; y < ROWS; y++) {
       maze[y] = [];
       for (let x = 0; x < COLS; x++) {
-        if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) {
-          maze[y][x] = 1;
-        } else {
-          maze[y][x] = Math.random() < 0.22 ? 1 : 0;
+        maze[y][x] = 1;
+      }
+    }
+
+    // Carve maze paths
+    function carve(x, y) {
+      const dirs = [
+        [2, 0],
+        [-2, 0],
+        [0, 2],
+        [0, -2]
+      ].sort(() => Math.random() - 0.5);
+
+      maze[y][x] = 0;
+
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx;
+        const ny = y + dy;
+
+        if (
+          nx > 0 &&
+          ny > 0 &&
+          nx < COLS - 1 &&
+          ny < ROWS - 1 &&
+          maze[ny][nx] === 1
+        ) {
+          maze[y + dy / 2][x + dx / 2] = 0;
+          carve(nx, ny);
         }
       }
     }
+
+    carve(1, 1);
 
     // Clear player start
     for (let y = 1; y < 4; y++) {
@@ -112,6 +140,7 @@
     }
 
     function movePlayer() {
+      canvas.focus?.();
       let dx = 0;
       let dy = 0;
 
@@ -203,7 +232,7 @@
     }
 
     function drawLighting() {
-      ctx.fillStyle = 'rgba(0,0,0,0.86)';
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       ctx.save();
@@ -212,10 +241,10 @@
       const gradient = ctx.createRadialGradient(
         player.x,
         player.y,
-        30,
+        40,
         player.x,
         player.y,
-        120
+        220
       );
 
       gradient.addColorStop(0, 'rgba(0,0,0,1)');
@@ -223,7 +252,7 @@
 
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(player.x, player.y, 120, 0, Math.PI * 2);
+      ctx.arc(player.x, player.y, 220, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.restore();
@@ -261,7 +290,20 @@
       drawMaze();
       drawPlayer();
 
-      enemies.forEach(drawEnemy);
+      enemies.forEach(e => {
+        const dist = Math.hypot(player.x - e.x, player.y - e.y);
+
+        if (dist < 170) {
+          ctx.save();
+
+          if (dist > 110) {
+            ctx.globalAlpha = (170 - dist) / 60;
+          }
+
+          drawEnemy(e);
+          ctx.restore();
+        }
+      });
 
       drawLighting();
 
@@ -270,5 +312,8 @@
 
     gameLoop();
   </script>
+</body>
+</html>
+
 </body>
 </html>
