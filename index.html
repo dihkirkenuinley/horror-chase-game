@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Femby Maze Horror</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      font-family: monospace;
+      color: white;
+    }
+
+    canvas {
+      display: block;
+      margin: auto;
+      image-rendering: pixelated;
+      background: #080808;
+      border: 4px solid #ff4fd8;
+    }
+
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: 18px;
+      text-shadow: 0 0 6px #ff4fd8;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div>FEMBOY MAZE HORROR</div>
+    <div>WASD / Arrow Keys to Move</div>
+    <div>Avoid the 3 femboys and reach the exit.</div>
+  </div>
+
+  <canvas id="game" width="960" height="640"></canvas>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const TILE = 32;
+    const ROWS = 20;
+    const COLS = 30;
+
+    const maze = [];
+
+    for (let y = 0; y < ROWS; y++) {
+      maze[y] = [];
+      for (let x = 0; x < COLS; x++) {
+        if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) {
+          maze[y][x] = 1;
+        } else {
+          maze[y][x] = Math.random() < 0.22 ? 1 : 0;
+        }
+      }
+    }
+
+    // Clear player start
+    for (let y = 1; y < 4; y++) {
+      for (let x = 1; x < 4; x++) {
+        maze[y][x] = 0;
+      }
+    }
+
+    // Exit zone
+    maze[ROWS - 2][COLS - 2] = 2;
+
+    const player = {
+      x: 1.5 * TILE,
+      y: 1.5 * TILE,
+      speed: 2.7,
+      size: 18
+    };
+
+    const keys = {};
+
+    document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+    function makeEnemy(x, y, color, hair) {
+      return {
+        x,
+        y,
+        speed: 1.4 + Math.random() * 0.4,
+        size: 20,
+        color,
+        hair,
+        flicker: Math.random() * 100
+      };
+    }
+
+    const enemies = [
+      makeEnemy(25 * TILE, 16 * TILE, '#ff77d8', '#74f0ff'),
+      makeEnemy(20 * TILE, 10 * TILE, '#c58cff', '#ffef73'),
+      makeEnemy(10 * TILE, 17 * TILE, '#ff99c8', '#ffffff')
+    ];
+
+    function isWall(x, y) {
+      const tx = Math.floor(x / TILE);
+      const ty = Math.floor(y / TILE);
+
+      if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return true;
+
+      return maze[ty][tx] === 1;
+    }
+
+    function movePlayer() {
+      let dx = 0;
+      let dy = 0;
+
+      if (keys['w'] || keys['arrowup']) dy -= player.speed;
+      if (keys['s'] || keys['arrowdown']) dy += player.speed;
+      if (keys['a'] || keys['arrowleft']) dx -= player.speed;
+      if (keys['d'] || keys['arrowright']) dx += player.speed;
+
+      const nx = player.x + dx;
+      const ny = player.y + dy;
+
+      if (!isWall(nx, player.y)) player.x = nx;
+      if (!isWall(player.x, ny)) player.y = ny;
+    }
+
+    function moveEnemies() {
+      enemies.forEach(e => {
+        const angle = Math.atan2(player.y - e.y, player.x - e.x);
+
+        const nx = e.x + Math.cos(angle) * e.speed;
+        const ny = e.y + Math.sin(angle) * e.speed;
+
+        if (!isWall(nx, e.y)) e.x = nx;
+        if (!isWall(e.x, ny)) e.y = ny;
+
+        const dist = Math.hypot(player.x - e.x, player.y - e.y);
+
+        if (dist < 20) {
+          gameOver(false);
+        }
+      });
+    }
+
+    function drawMaze() {
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          if (maze[y][x] === 1) {
+            ctx.fillStyle = '#161616';
+            ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+
+            ctx.strokeStyle = '#2f2f2f';
+            ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
+          }
+
+          if (maze[y][x] === 2) {
+            ctx.fillStyle = '#00ff99';
+            ctx.fillRect(x * TILE + 8, y * TILE + 8, 16, 16);
+          }
+        }
+      }
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(player.x - 8, player.y - 8, 16, 16);
+
+      ctx.fillStyle = '#000';
+      ctx.fillRect(player.x - 4, player.y - 2, 2, 2);
+      ctx.fillRect(player.x + 2, player.y - 2, 2, 2);
+    }
+
+    function drawEnemy(e) {
+      // Hair
+      ctx.fillStyle = e.hair;
+      ctx.fillRect(e.x - 10, e.y - 12, 20, 8);
+
+      // Face
+      ctx.fillStyle = '#ffd7c2';
+      ctx.fillRect(e.x - 8, e.y - 6, 16, 14);
+
+      // Outfit
+      ctx.fillStyle = e.color;
+      ctx.fillRect(e.x - 8, e.y + 8, 16, 12);
+
+      // Eyes
+      const blink = Math.sin(Date.now() / 120 + e.flicker) > 0.95;
+
+      ctx.fillStyle = blink ? '#ff0000' : '#000';
+      ctx.fillRect(e.x - 4, e.y - 2, 2, 2);
+      ctx.fillRect(e.x + 2, e.y - 2, 2, 2);
+
+      // Smile
+      ctx.fillStyle = '#900';
+      ctx.fillRect(e.x - 2, e.y + 2, 4, 1);
+
+      // Creepy glow
+      ctx.strokeStyle = 'rgba(255, 100, 180, 0.4)';
+      ctx.strokeRect(e.x - 12, e.y - 14, 24, 36);
+    }
+
+    function drawLighting() {
+      ctx.fillStyle = 'rgba(0,0,0,0.86)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+
+      const gradient = ctx.createRadialGradient(
+        player.x,
+        player.y,
+        30,
+        player.x,
+        player.y,
+        120
+      );
+
+      gradient.addColorStop(0, 'rgba(0,0,0,1)');
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 120, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    let ended = false;
+
+    function gameOver(win) {
+      ended = true;
+
+      setTimeout(() => {
+        alert(win ? 'YOU ESCAPED THE FEMBOYS' : 'THE FEMBOYS GOT YOU');
+        location.reload();
+      }, 100);
+    }
+
+    function checkWin() {
+      const tx = Math.floor(player.x / TILE);
+      const ty = Math.floor(player.y / TILE);
+
+      if (maze[ty][tx] === 2) {
+        gameOver(true);
+      }
+    }
+
+    function gameLoop() {
+      if (ended) return;
+
+      movePlayer();
+      moveEnemies();
+      checkWin();
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawMaze();
+      drawPlayer();
+
+      enemies.forEach(drawEnemy);
+
+      drawLighting();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>
