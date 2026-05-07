@@ -91,18 +91,20 @@
     carve(1, 1);
 
     // Clear player start
-    for (let y = 1; y < 4; y++) {
-      for (let x = 1; x < 4; x++) {
+    for (let y = 1; y < 5; y++) {
+      for (let x = 1; x < 5; x++) {
         maze[y][x] = 0;
       }
     }
 
-    // Exit zone
+    // Make sure exit exists
     maze[ROWS - 2][COLS - 2] = 2;
+    maze[ROWS - 2][COLS - 3] = 0;
+    maze[ROWS - 3][COLS - 2] = 0;
 
     const player = {
-      x: 1.5 * TILE,
-      y: 1.5 * TILE,
+      x: 2 * TILE,
+      y: 2 * TILE,
       speed: 2.7,
       size: 18
     };
@@ -131,8 +133,8 @@
     ];
 
     function isWall(x, y) {
-      const tx = Math.floor(x / TILE);
-      const ty = Math.floor(y / TILE);
+      const tx = Math.floor((x) / TILE);
+      const ty = Math.floor((y) / TILE);
 
       if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return true;
 
@@ -140,7 +142,6 @@
     }
 
     function movePlayer() {
-      canvas.focus?.();
       let dx = 0;
       let dy = 0;
 
@@ -152,8 +153,25 @@
       const nx = player.x + dx;
       const ny = player.y + dy;
 
-      if (!isWall(nx, player.y)) player.x = nx;
-      if (!isWall(player.x, ny)) player.y = ny;
+      const padding = 10;
+
+      if (
+        !isWall(nx - padding, player.y - padding) &&
+        !isWall(nx + padding, player.y - padding) &&
+        !isWall(nx - padding, player.y + padding) &&
+        !isWall(nx + padding, player.y + padding)
+      ) {
+        player.x = nx;
+      }
+
+      if (
+        !isWall(player.x - padding, ny - padding) &&
+        !isWall(player.x + padding, ny - padding) &&
+        !isWall(player.x - padding, ny + padding) &&
+        !isWall(player.x + padding, ny + padding)
+      ) {
+        player.y = ny;
+      };
     }
 
     function moveEnemies() {
@@ -194,12 +212,27 @@
     }
 
     function drawPlayer() {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(player.x - 8, player.y - 8, 16, 16);
+      // Head
+      ctx.fillStyle = '#ffd7b5';
+      ctx.fillRect(player.x - 6, player.y - 12, 12, 12);
 
+      // Hair
+      ctx.fillStyle = '#5a3a22';
+      ctx.fillRect(player.x - 7, player.y - 14, 14, 5);
+
+      // Body
+      ctx.fillStyle = '#4da6ff';
+      ctx.fillRect(player.x - 5, player.y, 10, 12);
+
+      // Legs
+      ctx.fillStyle = '#222';
+      ctx.fillRect(player.x - 5, player.y + 12, 4, 6);
+      ctx.fillRect(player.x + 1, player.y + 12, 4, 6);
+
+      // Eyes
       ctx.fillStyle = '#000';
-      ctx.fillRect(player.x - 4, player.y - 2, 2, 2);
-      ctx.fillRect(player.x + 2, player.y - 2, 2, 2);
+      ctx.fillRect(player.x - 3, player.y - 8, 2, 2);
+      ctx.fillRect(player.x + 1, player.y - 8, 2, 2);
     }
 
     function drawEnemy(e) {
@@ -312,8 +345,5 @@
 
     gameLoop();
   </script>
-</body>
-</html>
-
 </body>
 </html>
