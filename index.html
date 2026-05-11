@@ -14,7 +14,7 @@
   <div id="ui">
     <div>FEMBOY MAZE HORROR</div>
     <div>WASD / Arrow Keys to Move</div>
-    <div style="color: #ff77d8;">Careful... they come out when you least expect...</div>
+    <div style="color: #ff77d8;">The flashlight is stronger, but they are smarter now...</div>
   </div>
   <canvas id="game" width="960" height="640"></canvas>
 
@@ -24,7 +24,6 @@
     const TILE = 32; const ROWS = 20; const COLS = 30;
     const maze = [];
 
-    // Generate Maze
     for (let y = 0; y < ROWS; y++) {
       maze[y] = [];
       for (let x = 0; x < COLS; x++) maze[y][x] = 1;
@@ -43,7 +42,6 @@
     }
     carve(1, 1);
 
-    // Set starting area and green exit
     for (let y = 1; y < 4; y++) for (let x = 1; x < 4; x++) maze[y][x] = 0;
     maze[ROWS - 2][COLS - 2] = 2; maze[ROWS - 2][COLS - 3] = 0; maze[ROWS - 3][COLS - 2] = 0;
 
@@ -55,8 +53,15 @@
     document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
     function makeEnemy(x, y, color, hair) {
-      return { x, y, speed: 1.1 + Math.random() * 0.4, color, hair };
+      return { 
+        x, y, 
+        speed: 1.2, 
+        color, hair, 
+        targetX: x, targetY: y, 
+        state: 'roaming' 
+      };
     }
+
     const enemies = [
       makeEnemy(25 * TILE, 16 * TILE, '#ff77d8', '#74f0ff'),
       makeEnemy(20 * TILE, 10 * TILE, '#c58cff', '#ffef73'),
@@ -70,29 +75,15 @@
       return maze[ty][tx];
     }
 
-    // Line of Sight function: checks if a wall is between two points
     function hasLineOfSight(x1, y1, x2, y2) {
       const dist = Math.hypot(x2 - x1, y2 - y1);
-      const step = 8; // Check every 8 pixels
+      const step = 8;
       const dx = (x2 - x1) / dist;
       const dy = (y2 - y1) / dist;
       for (let i = 0; i < dist; i += step) {
         if (getTile(x1 + dx * i, y1 + dy * i) === 1) return false;
       }
       return true;
-    }
-
-    function drawPlayer() {
-      const isMoving = keys['w'] || keys['a'] || keys['s'] || keys['d'] || keys['arrowup'] || keys['arrowdown'] || keys['arrowleft'] || keys['arrowright'];
-      const bob = isMoving ? Math.sin(Date.now() / 100) * 2 : 0;
-      ctx.save();
-      ctx.translate(player.x, player.y + bob);
-      ctx.fillStyle = '#ffd7b5'; ctx.fillRect(-6, -15, 12, 12);
-      ctx.fillStyle = '#5a3a22'; ctx.fillRect(-7, -17, 14, 5);
-      ctx.fillStyle = '#4da6ff'; ctx.fillRect(-5, -3, 10, 10);
-      ctx.fillStyle = '#222'; ctx.fillRect(-5, 7, 4, 5); ctx.fillRect(1, 7, 4, 5);
-      ctx.fillStyle = '#000'; ctx.fillRect(-3, -11, 2, 2); ctx.fillRect(1, -11, 2, 2);
-      ctx.restore();
     }
 
     function update() {
@@ -103,26 +94,46 @@
       if (keys['a'] || keys['arrowleft']) dx -= player.speed;
       if (keys['d'] || keys['arrowright']) dx += player.speed;
 
-      // Corrected movement collision (allows walking on exit tile 2)
       if (getTile(player.x + dx, player.y) !== 1) player.x += dx;
       if (getTile(player.x, player.y + dy) !== 1) player.y += dy;
 
-      // Win Condition
       if (getTile(player.x, player.y) === 2) gameOver(true);
 
       enemies.forEach(e => {
-        const angle = Math.atan2(player.y - e.y, player.x - e.x);
-        const nx = e.x + Math.cos(angle) * e.speed, ny = e.y + Math.sin(angle) * e.speed;
-        if (getTile(nx, e.y) !== 1) e.x = nx;
-        if (getTile(e.x, ny) !== 1) e.y = ny;
-        if (Math.hypot(player.x - e.x, player.y - e.y) < 18) gameOver(false);
+        const distToPlayer = Math.hypot(player.x - e.x, player.y - e.y);
+        const canSeePlayer = hasLineOfSight(e.x, e.y, player.x, player.y);
+
+        if (canSeePlayer) {
+          e.state = 'chasing';
+          e.targetX = player.x;
+          e.targetY = player.y;
+        } else if (e.state === 'chasing' || Math.hypot(e.targetX - e.x, e.targetY - e.y) < 10) {
+          // If we lost the player or reached our roam spot, pick a new random floor tile
+          e.state = 'roaming';
+          let rx, ry;
+          do {
+            rx = Math.floor(Math.random() * COLS);
+            ry = Math.floor(Math.random() * ROWS);
+          } while (maze[ry][rx] !== 0);
+          e.targetX = rx * TILE + TILE/2;
+          e.targetY = ry * TILE + TILE/2;
+        }
+
+        // Move towards current target
+        const angle = Math.atan2(e.targetY - e.y, e.targetX - e.x);
+        const vx = Math.cos(angle) * e.speed;
+        const vy = Math.sin(angle) * e.speed;
+
+        if (getTile(e.x + vx, e.y) !== 1) e.x += vx;
+        if (getTile(e.x, e.y + vy) !== 1) e.y += vy;
+
+        if (distToPlayer < 20) gameOver(false);
       });
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Draw Maze
       for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
           if (maze[y][x] === 1) { 
@@ -135,9 +146,9 @@
         }
       }
 
-      // Draw Enemies ONLY if they have LOS to player
       enemies.forEach(e => {
-        if (hasLineOfSight(player.x, player.y, e.x, e.y)) {
+        // Increased view distance check (approx 300px)
+        if (hasLineOfSight(player.x, player.y, e.x, e.y) && Math.hypot(player.x - e.x, player.y - e.y) < 350) {
           ctx.fillStyle = e.hair; ctx.fillRect(e.x - 10, e.y - 15, 20, 10);
           ctx.fillStyle = '#ffd7c2'; ctx.fillRect(e.x - 8, e.y - 5, 16, 15);
           ctx.fillStyle = e.color; ctx.fillRect(e.x - 8, e.y + 10, 16, 10);
@@ -145,21 +156,24 @@
         }
       });
       
-      drawPlayer();
+      // Draw Player
+      ctx.fillStyle = '#ffd7b5'; ctx.fillRect(player.x - 6, player.y - 15, 12, 12);
+      ctx.fillStyle = '#4da6ff'; ctx.fillRect(player.x - 5, player.y - 3, 10, 10);
 
-      // Flashlight effect
+      // Flashlight (Increased radius to see corners better)
       ctx.save();
       ctx.globalCompositeOperation = 'multiply';
-      const grad = ctx.createRadialGradient(player.x, player.y, 20, player.x, player.y, 180);
+      const grad = ctx.createRadialGradient(player.x, player.y, 30, player.x, player.y, 250);
       grad.addColorStop(0, 'white'); grad.addColorStop(1, 'black');
       ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
     }
 
     function gameOver(win) {
+      if (ended) return;
       ended = true;
       const msg = document.createElement('div');
-      msg.style = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:40px; color:white; text-shadow:0 0 10px #ff4fd8; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:10px;";
+      msg.style = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:40px; color:white; text-shadow:0 0 10px #ff4fd8; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:10px; z-index:100;";
       msg.innerHTML = (win ? "YOU ESCAPED!" : "THEY FOUND YOU...") + "<br><span style='font-size:20px'>Click to Restart</span>";
       document.body.appendChild(msg);
       window.onclick = () => location.reload();
@@ -170,4 +184,5 @@
   </script>
 </body>
 </html>
+
 
