@@ -14,7 +14,7 @@
   <div id="ui">
     <div>FEMBOY MAZE HORROR</div>
     <div>WASD / Arrow Keys to Move</div>
-    <div style="color: #ff77d8;">The flashlight is stronger, but they are smarter now...</div>
+    <div style="color: #ff77d8;">They roam the halls now... keep your eyes on the light.</div>
   </div>
   <canvas id="game" width="960" height="640"></canvas>
 
@@ -24,6 +24,7 @@
     const TILE = 32; const ROWS = 20; const COLS = 30;
     const maze = [];
 
+    // Generate Maze
     for (let y = 0; y < ROWS; y++) {
       maze[y] = [];
       for (let x = 0; x < COLS; x++) maze[y][x] = 1;
@@ -42,6 +43,7 @@
     }
     carve(1, 1);
 
+    // Set starting area and green exit
     for (let y = 1; y < 4; y++) for (let x = 1; x < 4; x++) maze[y][x] = 0;
     maze[ROWS - 2][COLS - 2] = 2; maze[ROWS - 2][COLS - 3] = 0; maze[ROWS - 3][COLS - 2] = 0;
 
@@ -108,18 +110,16 @@
           e.targetX = player.x;
           e.targetY = player.y;
         } else if (e.state === 'chasing' || Math.hypot(e.targetX - e.x, e.targetY - e.y) < 10) {
-          // If we lost the player or reached our roam spot, pick a new random floor tile
           e.state = 'roaming';
           let rx, ry;
           do {
             rx = Math.floor(Math.random() * COLS);
             ry = Math.floor(Math.random() * ROWS);
           } while (maze[ry][rx] !== 0);
-          e.targetX = rx * TILE + TILE/2;
-          e.targetY = ry * TILE + TILE/2;
+          e.targetX = rx * TILE + TILE / 2;
+          e.targetY = ry * TILE + TILE / 2;
         }
 
-        // Move towards current target
         const angle = Math.atan2(e.targetY - e.y, e.targetX - e.x);
         const vx = Math.cos(angle) * e.speed;
         const vy = Math.sin(angle) * e.speed;
@@ -147,8 +147,11 @@
       }
 
       enemies.forEach(e => {
-        // Increased view distance check (approx 300px)
-        if (hasLineOfSight(player.x, player.y, e.x, e.y) && Math.hypot(player.x - e.x, player.y - e.y) < 350) {
+        const distToPlayer = Math.hypot(player.x - e.x, player.y - e.y);
+        const flashlightRadius = 160; 
+
+        // Always visible if inside the flashlight area
+        if (distToPlayer < flashlightRadius) {
           ctx.fillStyle = e.hair; ctx.fillRect(e.x - 10, e.y - 15, 20, 10);
           ctx.fillStyle = '#ffd7c2'; ctx.fillRect(e.x - 8, e.y - 5, 16, 15);
           ctx.fillStyle = e.color; ctx.fillRect(e.x - 8, e.y + 10, 16, 10);
@@ -160,11 +163,12 @@
       ctx.fillStyle = '#ffd7b5'; ctx.fillRect(player.x - 6, player.y - 15, 12, 12);
       ctx.fillStyle = '#4da6ff'; ctx.fillRect(player.x - 5, player.y - 3, 10, 10);
 
-      // Flashlight (Increased radius to see corners better)
+      // Flashlight effect (Smaller, 160px radius)
       ctx.save();
       ctx.globalCompositeOperation = 'multiply';
-      const grad = ctx.createRadialGradient(player.x, player.y, 30, player.x, player.y, 250);
-      grad.addColorStop(0, 'white'); grad.addColorStop(1, 'black');
+      const grad = ctx.createRadialGradient(player.x, player.y, 20, player.x, player.y, 160);
+      grad.addColorStop(0, 'white'); 
+      grad.addColorStop(1, 'black');
       ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
     }
@@ -184,5 +188,6 @@
   </script>
 </body>
 </html>
+
 
 
