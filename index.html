@@ -166,10 +166,11 @@
       let dx = 0;
       let dy = 0;
 
-      if (keys['w'] || keys['arrowup']) dy -== player.speed;
+      if (keys['w'] || keys['arrowup']) dy -= player.speed;
       if (keys['s'] || keys['arrowdown']) dy += player.speed;
-      if (keys['a'] || keys['arrowleft']) dx -== player.speed;
+      if (keys['a'] || keys['arrowleft']) dx -= player.speed;
       if (keys['d'] || keys['arrowright']) dx += player.speed;
+
 
       if (getTile(player.x + dx, player.y) !== 1) {
         player.x += dx;
